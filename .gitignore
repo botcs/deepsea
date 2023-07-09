@@ -1,0 +1,6 @@
+training-output/
+__pycache__/
+detectron2/
+*.jpg
+*.json
+README.md
