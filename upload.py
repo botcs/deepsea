@@ -18,6 +18,10 @@ filenames = [
 
     # Second batch of videos (done on 2023-07-19)
     # Since they were not working on biigle
+    "/home/csbotos/celia_hdd/JC66 Dive 3/File 5 Dive 3 JC66_1.mov",
+    "/home/csbotos/celia_hdd/JC66 Dive 2/File 5 Dive 3 JC66_1.mov",
+
+
 
 ]
 
