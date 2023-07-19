@@ -7,15 +7,18 @@ import subprocess
 s3 = boto3.client('s3')
 s3_bucket_name = 'celiaproject'
 filenames = [
+    # First batch of videos (done on 2023-07-05)
     # "/home/csbotos/celia_hdd/JC66 Dive 4/File 2 Dive 4 JC66_1.mov",
-
     # "/home/csbotos/celia_hdd/JC66 Dive 5/File 1 Dive 5 JC66_1.mov",
     # "/home/csbotos/celia_hdd/JC66 Dive 5/File 2 Dive 5 JC66_1.mov",
-
     # "/home/csbotos/celia_hdd/JC66 Dive 8/File 1 Dive 8 JC66_1.mov",
     # "/home/csbotos/celia_hdd/JC66 Dive 8/File 2 Dive 8 JC66_1.mov",
     # "/home/csbotos/celia_hdd/JC66 Dive 8/File 3 Dive 8 JC66_1.mov",
-    "/home/csbotos/celia_hdd/JC66 Dive 8/File 4 Dive 8 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/JC66 Dive 8/File 4 Dive 8 JC66_1.mov",
+
+    # Second batch of videos (done on 2023-07-19)
+    # Since they were not working on biigle
+
 ]
 
 temp_dir = "/home/csbotos/storage/deepsea/"

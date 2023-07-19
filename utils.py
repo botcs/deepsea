@@ -62,7 +62,8 @@ def labelme_directory_to_detectron_dataset(directory, class_labels):
             annotations.append({
                 "bbox_mode": 4,  # Oriented bounding box (cx, cy, w, h, a)
                 "category_id": class_labels.index(shape['label']),
-                "bbox": (cx, cy, w, h, a)
+                "bbox": (cx, cy, w, h, a),
+                "bbox8": points.flatten().tolist(),
             })
 
         uid = os.path.basename(filename).split('.')[0]

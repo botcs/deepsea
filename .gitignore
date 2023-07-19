@@ -4,3 +4,4 @@ detectron2/
 *.jpg
 *.json
 README.md
+*tfevents*

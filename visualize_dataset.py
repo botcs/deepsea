@@ -10,11 +10,7 @@ import tqdm
 @click.command()
 @click.argument("directory", nargs=1)
 def main(directory):
-    class_labels = ['Branching 3D', 'Cups', 'Fan 2D', 'Hydrocorals', 'Other', 'Pale', 'True crabs', 'Two-dimensional lamellate', 'Yellow', 'biogenic + sediment', 'rubble', 'volcanic', 'volcanic + sediment']
-    class_labels += ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Cups', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Other', 'Sea stars', 'Spider crabs',
- 'Tube-like forms', 'Two-dimensional lamellate', 'coral rubble', 'lost+found']
-    class_labels += ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Crustaceans', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Mushroom', 'Other', 'Other anemones', 'Pale', 'Sea cucumbers', 'Sea stars', 'Squat lobsters', 'Stalked', 'Three-dimensional branching', 'Tube-like forms', 'Two-dimensional lamellate', 'Unbranched', 'Yellow', 'biogenic rubble', 'lost+found', 'volcanic, sediment + biogenic rubble']
-    
+    class_labels = ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Crustaceans', 'Cups', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Mushroom', 'Other', 'Other anemones', 'Pale', 'Prawns / Shrimps / Mysids', 'Sea cucumbers', 'Sea stars', 'Spider crabs', 'Squat lobsters', 'Stalked', 'Three-dimensional branching', 'True crabs', 'Tube-like forms', 'Two-dimensional lamellate', 'Unbranched', 'Yellow', 'biogenic + sediment', 'biogenic rubble', 'coral rubble', 'lost+found', 'rubble', 'volcanic', 'volcanic + sediment', 'volcanic, sediment + biogenic rubble']
     class_labels = sorted(list(set(class_labels)))
 
     dataset_name = "ship_dataset"

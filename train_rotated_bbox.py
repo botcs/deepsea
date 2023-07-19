@@ -35,25 +35,32 @@ def convert_polygon_to_rotated_bbox(polygon):
         w = h_temp
         a += 90
 
-    # a = (360 - a) % 360  # ccw [0, 360]
+    a = (360 - a) % 360  # ccw [0, 360]
 
-    # # Clamp to [0, 90] and [270, 360]
-    # if (a > 90) and (a <= 180):
-    #     a -= 180
-    # elif (a > 180) and (a < 270):
-    #     a -= 180
+    # Clamp to [0, 90] and [270, 360]
+    if (a > 90) and (a <= 180):
+        a -= 180
+    elif (a > 180) and (a < 270):
+        a -= 180
 
-    # # Clamp to [-180, 180]
-    # if a > 180:
-    #     a -= 360
+    # Clamp to [-180, 180]
+    if a > 180:
+        a -= 360
 
     return [cx, cy, w, h, a]
     
 def rotate_bbox(annotation, transforms):
-    converted_bbox = convert_rotated_bbox_to_polygon(annotation['bbox'])
-    import ipdb; ipdb.set_trace()
-    converted_bbox = transforms.apply_polygons([converted_bbox])[0]
-    annotation['bbox'] = convert_polygon_to_rotated_bbox(converted_bbox)
+    # converted_bbox = convert_rotated_bbox_to_polygon(annotation['bbox'])
+    bbox8 = annotation['bbox8']
+    bbox8 = np.asarray(bbox8).reshape(4, 2)
+    converted_bbox = transforms.apply_coords(bbox8)
+    if len(converted_bbox) == 0:
+        # After augmentation, some boxes are degenerate and become empty.
+        # this hack makes sure that this box is ignored.
+        annotation['iscrowd'] = 1
+        annotation['bbox'] = [0, 0, 0, 0, 0]
+    else:
+        annotation['bbox'] = convert_polygon_to_rotated_bbox(converted_bbox)
     annotation["bbox_mode"] = BoxMode.XYXY_ABS
     # annotation["bbox"] = transforms.apply_rotated_box(
     #     np.asarray([annotation['bbox']]))[0]
@@ -64,11 +71,12 @@ def rotate_bbox(annotation, transforms):
 def get_shape_augmentations():
     # Optional shape augmentations
     return [
-        T.RandomCrop("relative_range", (0.8, 0.8)),
         T.RandomFlip(),
+        T.RandomRotation(angle=[-10, 10], sample_style="range", expand=True),
+        # T.RandomCrop("relative_range", (0.85, 0.85)),
+        T.MinIoURandomCrop(min_ious=(0.7, 0.8, 0.9), min_crop_size=0.5),
         T.ResizeShortestEdge(short_edge_length=(
             640, 672, 704, 736, 768, 800), max_size=1333, sample_style='choice'),
-        # T.RandomRotation(angle=[-30, -15, 0, 15, 30]),
     ]
 
 
@@ -90,15 +98,16 @@ def dataset_mapper(dataset_dict):
     color_aug_input = T.AugInput(image)
     get_color_augmentations()(color_aug_input)
     image = color_aug_input.image
-    # draw rotated rectangles with cv2 before augmentation
-    for annotation in dataset_dict["annotations"]:
-        bbox = annotation['bbox']
-        cx, cy, w, h, angle = bbox
-        ret = cv2.boxPoints(((cx, cy), (w, h), angle))
-        ret = np.int0(ret)
-        before_image = cv2.drawContours(image, [ret], 0, (0, 0, 255), 2)
+    # # draw rotated rectangles with cv2 before augmentation
+    # before_image = image.copy()
+    # for annotation in dataset_dict["annotations"]:
+    #     bbox = annotation['bbox']
+    #     cx, cy, w, h, angle = bbox
+    #     ret = cv2.boxPoints(((cx, cy), (w, h), -angle))
+    #     ret = np.intp(ret)
+    #     before_image = cv2.drawContours(before_image, [ret], 0, (0, 0, 255), 2)
+    # cv2.imwrite('before.jpg', before_image)
 
-    cv2.imwrite('before.jpg', before_image)
     image, image_transforms = T.apply_transform_gens(
         get_shape_augmentations(), image)
     dataset_dict["image"] = torch.as_tensor(
@@ -113,17 +122,16 @@ def dataset_mapper(dataset_dict):
         annotations, image.shape[:2])
     dataset_dict["instances"] = utils.filter_empty_instances(instances)
 
-    # draw rotated rectangles with cv2
-    for annotation in annotations:
-        bbox = annotation['bbox']
-        cx, cy, w, h, angle = bbox
-        ret = cv2.boxPoints(((cx, cy), (w, h), angle))
-        ret = np.int0(ret)
-        after_image = cv2.drawContours(image, [ret], 0, (0, 0, 255), 2)
-    
-    cv2.imwrite('after.jpg', after_image)
-    import ipdb; ipdb.set_trace()
-
+    # # draw rotated rectangles with cv2
+    # after_image = image.copy()
+    # for annotation in annotations:
+    #     bbox = annotation['bbox']
+    #     cx, cy, w, h, angle = bbox
+    #     ret = cv2.boxPoints(((cx, cy), (w, h), -angle))
+    #     ret = np.intp(ret)
+    #     after_image = cv2.drawContours(after_image, [ret], 0, (0, 0, 255), 2)
+    # cv2.imwrite('after.jpg', after_image)
+    # import ipdb; ipdb.set_trace()
 
     return dataset_dict
 
@@ -142,12 +150,10 @@ class RotatedBoundingBoxTrainer(DefaultTrainer):
 
 
 def train_detectron(flags):
-    class_labels = ['Branching 3D', 'Cups', 'Fan 2D', 'Hydrocorals', 'Other', 'Pale', 'True crabs', 'Two-dimensional lamellate', 'Yellow', 'biogenic + sediment', 'rubble', 'volcanic', 'volcanic + sediment']
-    class_labels += ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Cups', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Other', 'Sea stars', 'Spider crabs',
- 'Tube-like forms', 'Two-dimensional lamellate', 'coral rubble', 'lost+found']
-    class_labels += ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Crustaceans', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Mushroom', 'Other', 'Other anemones', 'Pale', 'Sea cucumbers', 'Sea stars', 'Squat lobsters', 'Stalked', 'Three-dimensional branching', 'Tube-like forms', 'Two-dimensional lamellate', 'Unbranched', 'Yellow', 'biogenic rubble', 'lost+found', 'volcanic, sediment + biogenic rubble']
-    class_labels += ['Prawns / Shrimps / Mysids']
-    
+    class_labels = ['Balls', 'Bottlebrush', 'Branching 3D', 'Colonial', 'Crustaceans', 'Cups', 'Fan 2D', 'Feather stars', 'Hydrocorals', 'Mushroom', 'Other', 'Other anemones', 'Pale', 'Prawns / Shrimps / Mysids', 'Sea cucumbers', 'Sea stars', 'Spider crabs', 'Squat lobsters', 'Stalked', 'Three-dimensional branching', 'True crabs', 'Tube-like forms', 'Two-dimensional lamellate', 'Unbranched', 'Yellow', 'biogenic + sediment', 'biogenic rubble', 'coral rubble', 'lost+found', 'rubble', 'volcanic', 'volcanic + sediment', 'volcanic, sediment + biogenic rubble']
+
+    class_labels = sorted(list(set(class_labels)))
+
     dataset_function = get_labelme_dataset_function(
         flags["directory"], class_labels)
     dataset_name = "dive8file4"
@@ -155,15 +161,15 @@ def train_detectron(flags):
     DatasetCatalog.register(dataset_name, dataset_function)
 
     cfg = get_cfg()
-    # cfg.merge_from_file(model_zoo.get_config_file(
-    #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
-    # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-    #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Weights
-    
     cfg.merge_from_file(model_zoo.get_config_file(
-        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
+        "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
+        "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Weights
+    
+    # cfg.merge_from_file(model_zoo.get_config_file(
+    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
+    # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
     
     # Rotated bbox specific config in the same directory as this file
     cfg.merge_from_file(os.path.join(os.path.dirname(
@@ -171,14 +177,21 @@ def train_detectron(flags):
     cfg.DATASETS.TRAIN = (dataset_name,)
     cfg.DATASETS.TEST = (dataset_name,)
     # Directory where the checkpoints are saved, "." is the current working dir
-    cfg.OUTPUT_DIR = "dive13-training"
+    cfg.OUTPUT_DIR = "training-output/augmentation-tests/2/dive13-training/"
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(class_labels)
-    cfg.DATALOADER.NUM_WORKERS = 0
+    cfg.DATALOADER.NUM_WORKERS = 8
+
+    # save the config to a file for reference
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+    cfg_filename = os.path.join(cfg.OUTPUT_DIR, "config.yaml")
+    with open(cfg_filename, 'w') as f:
+        f.write(cfg.dump())
 
 
     trainer = RotatedBoundingBoxTrainer(cfg)
     # NOTE: important, the model will not train without this
     trainer.resume_or_load(resume=False)
+    trainer.checkpointer.max_to_keep = 10
     trainer.train()
 
 

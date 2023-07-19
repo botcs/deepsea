@@ -60,16 +60,17 @@ def main(csv_path, out_dir):
     # flatten the list
     label_timestamps = [item for sublist in label_timestamps for item in sublist]
 
-    print(f"Extracting frames from video {video_path}...")
-    # extract frames from video
-    frames = extract_frames_from_video(video_path, label_timestamps)
-
     frames_dir = os.path.join(out_dir, "frames", "labeled", f"dive{dive_number}-file{file_number}")
     os.makedirs(frames_dir, exist_ok=True)
 
-    print(f"Saving frames to {frames_dir}...")
-    # save frames to disk
-    save_frames_to_disk(frames, frames_dir)
+    # print(f"Extracting frames from video {video_path}...")
+    # # extract frames from video
+    # frames = extract_frames_from_video(video_path, label_timestamps)
+
+
+    # print(f"Saving frames to {frames_dir}...")
+    # # save frames to disk
+    # save_frames_to_disk(frames, frames_dir)
 
     # convert biigle to labelme
     convert_biigle_to_labelme(csv_path, frames_dir)
