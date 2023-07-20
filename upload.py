@@ -18,12 +18,33 @@ filenames = [
 
     # Second batch of videos (done on 2023-07-19)
     # Since they were not working on biigle
-    "/home/csbotos/celia_hdd/JC66 Dive 3/File 5 Dive 3 JC66_1.mov",
-    "/home/csbotos/celia_hdd/JC66 Dive 2/File 5 Dive 3 JC66_1.mov",
+    "/home/csbotos/celia_hdd/CH_Coral/File 5 Dive 3 JC66_1.mov",
+    "/home/csbotos/celia_hdd/JC66 Dive 2/File_5_Dive_2_JC66_1.mov",
 
+    # Third batch of videos (done on 2023-07-20)
+    # From HDD #2
+    "/home/csbotos/celia_hdd/Dive 14/File 1 Dive 14 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 14/File 2 Dive 14 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 14/File 3 Dive 14 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 14/File 4 Dive 14 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 14/File 5 Dive 14 JC66_1.mov",
 
+    "/home/csbotos/celia_hdd/Dive 15/File 2 Dive 15 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 15/File 3 Dive 15 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 15/File 4 Dive 15 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 15/File 5 Dive 15 JC66_1.mov",
 
+    "/home/csbotos/celia_hdd/Dive 16/File 1 Dive 16 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 16/File 2 Dive 16 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 16/File 3 Dive 16 JC66_1.mov",
+
+    "/home/csbotos/celia_hdd/Dive 17/File 1 Dive 17 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 17/File 2 Dive 17 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 17/File 3 Dive 17 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 17/File 4 Dive 17 JC66_1.mov",
+    "/home/csbotos/celia_hdd/Dive 17/File 5 Dive 17 JC66_1.mov",
 ]
+
 
 temp_dir = "/home/csbotos/storage/deepsea/"
 
@@ -45,8 +66,31 @@ def check_file_exists(filename):
     
 
 def copy_file_to_tmp(filename):
+    # check if file exists and filesize is the same
+    new_filename = os.path.join(temp_dir, os.path.basename(filename))
+    if os.path.exists(new_filename):
+
+        # check if file source stille exists, if not print the file size and
+        # return the target filename
+        if not os.path.exists(filename):
+            print(f'file {filename} does not exist anymore')
+            filesize = os.stat(new_filename).st_size / 1024 / 1024 / 1024
+            print(f'file {new_filename} exists in temp_dir with size {filesize} GB')
+            return new_filename
+
+
+        src_statinfo = os.stat(filename)
+        tmp_statinfo = os.stat(new_filename)
+        if src_statinfo.st_size == tmp_statinfo.st_size:
+            print(f'file {filename} already exists in temp_dir with same size')
+            return new_filename
+        else:
+            print(f'file {filename} already exists in temp_dir but size is different')
+            raise ValueError(f'file {filename} already exists in temp_dir but size is different')
+        
+
     # copy file to temp_dir with rsync resume
-    ret = subprocess.check_call(['rsync', '-avh', '--progress', '--append-verify', filename, temp_dir])
+    ret = subprocess.check_call(['rsync', '-avh', '--progress', filename, temp_dir])
     if ret != 0:
         raise ValueError(f'rsync failed to copy file {filename}')
     
@@ -115,10 +159,10 @@ def check_if_tmp_mp4_exists(filename):
         return None
 
 if __name__ == "__main__":
-    for filename in filenames:
-        print("check if file exists:", filename)
-        check_file_exists(filename)
-        print("OK")
+    # for filename in filenames:
+    #     print("check if file exists:", filename)
+    #     check_file_exists(filename)
+    #     print("OK")
     
     for filename in filenames:
         # check if tmp_mp4 exists and jump to upload in that case
@@ -147,16 +191,16 @@ if __name__ == "__main__":
                 continue
 
         # check if file exists in s3 and skip upload in that case
-        # try:
-        #     if check_if_file_exists_in_s3(filename):
-        #         print("file exists in s3, skipping file:", filename)
-        #         print("upload to s3")
-        #     else:
-        #         upload(tmp_mp4)
-        # except Exception as e:
-        #     print(e)
-        #     print("failed to upload file:", filename)
-        #     print("skipping file:", filename)
+        try:
+            if check_if_file_exists_in_s3(filename):
+                print("file exists in s3, skipping file:", filename)
+                print("upload to s3")
+            else:
+                upload(tmp_mp4)
+        except Exception as e:
+            print(e)
+            print("failed to upload file:", filename)
+            print("skipping file:", filename)
 
 
 
