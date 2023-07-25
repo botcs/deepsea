@@ -82,11 +82,24 @@ def save_frames_to_disk(extracted_frames, output_directory):
             print(f"Could not write frame {ts} to {output_path}")
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser()
+    args = argparse.ArgumentParser(description="""
+Extract frames from a video. 
+If --timestamps is provided, extract frames at those timestamps.
+If --biigle-csv is provided, extract frames at the timestamps in the csv file.
+
+Example usage:
+python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory
+python extract_frames_from_video.py --video_path /path/to/video.mp4 --biigle-csv /path/to/biigle.csv --output_directory /path/to/output/directory
+
+
+Use --timedelta  to extract frames every n seconds (e.g. every 10 seconds)
+Example usage with timedelta:
+python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory --timedelta 10.0
+""")
     args.add_argument("--video_path", type=str, required=True)
     args.add_argument("--timestamps", help="From and to timestamps (in sec). Exclusive with --biigle", nargs="+", type=float)
     args.add_argument("--biigle-csv", help="get timestamps of keyframes from biigle csv. Exclusive with --timestamps", type=str)
-    args.add_argument("--output_directory", type=str, default="/tmp/")
+    args.add_argument("--output_directory", type=str, default="/tmp/", help="directory to save extracted frames")
     args.add_argument("--timedelta", type=float, help="extract frames every n seconds (e.g. 0.5). Default: extract every frame")
     args = args.parse_args()
 
