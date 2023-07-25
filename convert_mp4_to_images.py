@@ -84,19 +84,25 @@ def save_frames_to_disk(extracted_frames, output_directory):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--video_path", type=str, required=True)
-    args.add_argument("--timestamps", help="from and to timestamps", nargs="+", type=float)
-    args.add_argument("--biigle", help="get timestamps from biigle csv", type=str)
+    args.add_argument("--timestamps", help="From and to timestamps (in sec). Exclusive with --biigle", nargs="+", type=float)
+    args.add_argument("--biigle-csv", help="get timestamps of keyframes from biigle csv. Exclusive with --timestamps", type=str)
     args.add_argument("--output_directory", type=str, default="/tmp/")
+    args.add_argument("--timedelta", type=float, help="extract frames every n seconds (e.g. 0.5). Default: extract every frame")
     args = args.parse_args()
 
     video_path = args.video_path
+
+    if args.timedelta is None:
+        fps = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)
+        args.timedelta = 1/fps
+
     if args.timestamps is not None:
         timestamps_from = args.timestamps[0]
         timestamps_to = args.timestamps[1]
-        timestamps = list(np.arange(timestamps_from, timestamps_to, 1/25))
+        timestamps = list(np.arange(timestamps_from, timestamps_to, args.timedelta))
 
     if args.timestamps is None:
-        timestamps = pd.read_csv(args.biigle)["frames"]
+        timestamps = pd.read_csv(args.biigle_csv)["frames"]
         timestamps = [json.loads(ts) for ts in timestamps]
         # flatten the list
         timestamps = [item for sublist in timestamps for item in sublist]
