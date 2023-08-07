@@ -18,12 +18,12 @@ filenames = [
 
     # Second batch of videos (done on 2023-07-19)
     # Since they were not working on biigle
-    "/home/csbotos/celia_hdd/CH_Coral/File 5 Dive 3 JC66_1.mov",
-    "/home/csbotos/celia_hdd/JC66 Dive 2/File_5_Dive_2_JC66_1.mov",
+    # "/home/csbotos/celia_hdd/CH_Coral/File 5 Dive 3 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/JC66 Dive 2/File_5_Dive_2_JC66_1.mov",
 
     # Third batch of videos (done on 2023-07-20)
     # From HDD #2
-    "/home/csbotos/celia_hdd/Dive 14/File 1 Dive 14 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 14/File 1 Dive 14 JC66_1.mov",
     "/home/csbotos/celia_hdd/Dive 14/File 2 Dive 14 JC66_1.mov",
     "/home/csbotos/celia_hdd/Dive 14/File 3 Dive 14 JC66_1.mov",
     "/home/csbotos/celia_hdd/Dive 14/File 4 Dive 14 JC66_1.mov",
@@ -31,18 +31,18 @@ filenames = [
 
     "/home/csbotos/celia_hdd/Dive 15/File 2 Dive 15 JC66_1.mov",
     "/home/csbotos/celia_hdd/Dive 15/File 3 Dive 15 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 15/File 4 Dive 15 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 15/File 5 Dive 15 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 15/File 4 Dive 15 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 15/File 5 Dive 15 JC66_1.mov",
 
-    "/home/csbotos/celia_hdd/Dive 16/File 1 Dive 16 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 16/File 2 Dive 16 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 16/File 3 Dive 16 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 16/File 1 Dive 16 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 16/File 2 Dive 16 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 16/File 3 Dive 16 JC66_1.mov",
 
-    "/home/csbotos/celia_hdd/Dive 17/File 1 Dive 17 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 17/File 2 Dive 17 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 17/File 3 Dive 17 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 17/File 4 Dive 17 JC66_1.mov",
-    "/home/csbotos/celia_hdd/Dive 17/File 5 Dive 17 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 17/File 1 Dive 17 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 17/File 2 Dive 17 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 17/File 3 Dive 17 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 17/File 4 Dive 17 JC66_1.mov",
+    # "/home/csbotos/celia_hdd/Dive 17/File 5 Dive 17 JC66_1.mov",
 ]
 
 

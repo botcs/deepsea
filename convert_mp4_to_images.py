@@ -72,14 +72,21 @@ def extract_frames_from_video(video_path, timestamps):
 
     return frames
 
-def save_frames_to_disk(extracted_frames, output_directory):
-    print(f"Saving {len(extracted_frames)} frames to {output_directory}...")
+def save_frames_to_disk(fnames_to_frames, output_directory):
+
+    assert len(fnames_to_frames) > 0, "No frames to save"
+    assert isinstance(fnames_to_frames, dict), "fnames_to_frames must be a dictionary"
+    assert all([fname.endswith(".jpg") for fname in fnames_to_frames.keys()]), "All filenames must end with .jpg"
+    assert all([isinstance(frame, np.ndarray) for frame in fnames_to_frames.values()]), "All values must be numpy arrays"
+
+    print(f"Saving {len(fnames_to_frames)} frames to {output_directory}...")
     os.makedirs(output_directory, exist_ok=True)
-    for ts, frame in tqdm.tqdm(extracted_frames.items(), total=len(extracted_frames)):
-        output_path = os.path.join(output_directory, f"{ts}.jpg")
+
+    for fname, frame in tqdm.tqdm(fnames_to_frames.items()):
+        output_path = os.path.join(output_directory, fname)
         ret = cv2.imwrite(output_path, frame)
         if not ret:
-            print(f"Could not write frame {ts} to {output_path}")
+            raise RuntimeError(f"Could not write frame {fname} to {output_path}")
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
