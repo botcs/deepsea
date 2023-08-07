@@ -46,7 +46,9 @@ filenames = [
 ]
 
 
-temp_dir = "/home/csbotos/storage/deepsea/"
+temp_dir = "/homes/53/csbotos/storage/deepsea/"
+
+remote_hostname = "rtx"
 
 def check_format(filename):
     _format = os.path.splitext(filename)[1]
@@ -66,31 +68,8 @@ def check_file_exists(filename):
     
 
 def copy_file_to_tmp(filename):
-    # check if file exists and filesize is the same
-    new_filename = os.path.join(temp_dir, os.path.basename(filename))
-    if os.path.exists(new_filename):
-
-        # check if file source stille exists, if not print the file size and
-        # return the target filename
-        if not os.path.exists(filename):
-            print(f'file {filename} does not exist anymore')
-            filesize = os.stat(new_filename).st_size / 1024 / 1024 / 1024
-            print(f'file {new_filename} exists in temp_dir with size {filesize} GB')
-            return new_filename
-
-
-        src_statinfo = os.stat(filename)
-        tmp_statinfo = os.stat(new_filename)
-        if src_statinfo.st_size == tmp_statinfo.st_size:
-            print(f'file {filename} already exists in temp_dir with same size')
-            return new_filename
-        else:
-            print(f'file {filename} already exists in temp_dir but size is different')
-            raise ValueError(f'file {filename} already exists in temp_dir but size is different')
-        
-
     # copy file to temp_dir with rsync resume
-    ret = subprocess.check_call(['rsync', '-avh', '--progress', filename, temp_dir])
+    ret = subprocess.check_call(['rsync', '-avh', '--progress', f"{remote_hostname}:{filename}", temp_dir])
     if ret != 0:
         raise ValueError(f'rsync failed to copy file {filename}')
     
@@ -122,12 +101,17 @@ def upload(fname):
     print(f'file successfully uploaded to: {object_url}')
 
 
-def convert_to_mp4(filename):
+def get_mp4_path_from_input_path(input_path):
     basename = os.path.basename(filename)
     _format = check_format(filename)
-    outputfile = os.path.join(temp_dir, basename.lower().replace(_format, ".mp4"))
+    out_path = os.path.join(temp_dir, basename.lower().replace(_format, ".mp4"))
+
     # replace " " with "_" in filename
-    outputfile = outputfile.replace(" ", "_")
+    out_path = out_path.replace(" ", "_")
+    return out_path
+
+def convert_to_mp4(filename):
+    outputfile = get_mp4_path_from_input_path(filename)
     print("target filename:", outputfile)
     # check if the subprocess call is successful
     ret = subprocess.check_call(['ffmpeg', '-i', filename, "-c:v", "libx264", "-c:a", "aac", "-strict", "experimental", outputfile])
@@ -141,19 +125,19 @@ def check_if_file_exists_in_s3(filename):
     # check if file exists in s3
     try:
         s3.head_object(Bucket=s3_bucket_name, Key=os.path.basename(filename))
-        print("File found on S3!")
+        print(f"File '{filename}' found on S3!")
         return True
     except:
-        print("File not found on S3")
+        print(f"File '{filename}' not found on S3")
         return False
 
 def check_if_tmp_mp4_exists(filename):
     # check if tmp_mp4 exists
-    tmp_mp4 = os.path.join(temp_dir, os.path.basename(filename).lower().replace(".mov", ".mp4"))
+    outputfile = get_mp4_path_from_input_path(filename)
     
-    if os.path.exists(tmp_mp4):
-        print("tmp_mp4 exists")
-        return tmp_mp4
+    if os.path.exists(outputfile):
+        print(f"MP4 file exists: {outputfile}")
+        return outputfile
     else:
         print("tmp_mp4 does not exist")
         return None
@@ -165,6 +149,13 @@ if __name__ == "__main__":
     #     print("OK")
     
     for filename in filenames:
+
+        print("\n\n\n\n\n")
+        print("******************************************")
+        print(f"Processing source file: {filename}")
+        print("******************************************")
+
+
         # check if tmp_mp4 exists and jump to upload in that case
         tmp_mp4 = check_if_tmp_mp4_exists(filename)
         if tmp_mp4 is not None:
@@ -192,10 +183,12 @@ if __name__ == "__main__":
 
         # check if file exists in s3 and skip upload in that case
         try:
-            if check_if_file_exists_in_s3(filename):
+            tmp_mp4 = get_mp4_path_from_input_path(filename)
+            if check_if_file_exists_in_s3(tmp_mp4):
                 print("file exists in s3, skipping file:", filename)
-                print("upload to s3")
+                print("Skipping upload")
             else:
+                print("upload to s3")
                 upload(tmp_mp4)
         except Exception as e:
             print(e)
