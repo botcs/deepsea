@@ -14,7 +14,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from utils import check_overlap
 
 import cv2
-
+import logging
 
 
 
@@ -274,9 +274,11 @@ class DatasetMapper:
         image = dataset_dict["image"]
 
         if image.shape[0] <= 0 or image.shape[1] <= 0:
+            logging.error("Augmentation error: image shape is invalid")
             raise ValueError("Augmentation error: image shape is invalid")
         
         if image.dtype != np.uint8:
+            logging.error("Augmentation error: image dtype is not uint8")
             raise ValueError("Augmentation error: image dtype is not uint8")
 
         annotations = dataset_dict["annotations"]
@@ -369,15 +371,17 @@ def train_detectron(args):
     DatasetCatalog.register(val_dataset_name, val_dataset_function)
 
     cfg = get_cfg()
-    # cfg.merge_from_file(model_zoo.get_config_file(
-    #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
+    cfg.merge_from_file(model_zoo.get_config_file(
+        "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
+    cfg.MODEL.WEIGHTS = "https://dl.fbaipublicfiles.com/detectron2/LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x/144219108/model_final_5e3439.pkl"  # Weights
+
     # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
     #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Weights
     
-    cfg.merge_from_file(model_zoo.get_config_file(
-        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
+    # cfg.merge_from_file(model_zoo.get_config_file(
+    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
+    # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
     
     # Rotated bbox specific config in the same directory as this file
     cfg.merge_from_file(os.path.join(os.path.dirname(
@@ -387,9 +391,6 @@ def train_detectron(args):
     # Directory where the checkpoints are saved, "." is the current working dir
     cfg.OUTPUT_DIR = args.output_dir
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(class_labels)
-    cfg.DATALOADER.NUM_WORKERS = 12
-    cfg.TEST.EVAL_PERIOD = 200
-    cfg.SOLVER.CHECKPOINT_PERIOD = 5000
     
 
     # save the config to a file for reference
@@ -415,7 +416,7 @@ if __name__ == "__main__":
     parser.add_argument("--train-json", help="Path to the training json file", required=True)
     parser.add_argument("--val-json", help="Path to the validation json file")
     parser.add_argument("--class-labels", help="Path to the class labels file", required=True)
-    parser.add_argument("--output-dir", help="Path to the directory for the experiment output", default="./debug0806")
+    parser.add_argument("--output-dir", help="Path to the directory for the experiment output", default="./training-output/debug0806")
     args = parser.parse_args()
 
     launch(

@@ -81,7 +81,7 @@ def remove_unavailable_videos(all_biigle_df):
     return all_biigle_df
 
 
-def train_val_split(all_biigle_df, out_dir, train_percentage=0.7, split_by="video", seed=42):
+def train_val_split(all_biigle_df, out_dir, train_ratio=0.7, split_by="video", seed=42):
     """
     Split the data into train and validation sets.
     """
@@ -115,8 +115,8 @@ def train_val_split(all_biigle_df, out_dir, train_percentage=0.7, split_by="vide
 
     if split_by == "video":
         # We will use the first X% of the videos for training and the rest for validation
-        train_video_ids = video_ids[:int(len(video_ids) * train_percentage)]
-        val_video_ids = video_ids[int(len(video_ids) * train_percentage):]
+        train_video_ids = video_ids[:int(len(video_ids) * train_ratio)]
+        val_video_ids = video_ids[int(len(video_ids) * train_ratio):]
 
         # split the dataframes
         train_df = all_biigle_df[all_biigle_df.video_id.isin(train_video_ids)]
@@ -129,8 +129,8 @@ def train_val_split(all_biigle_df, out_dir, train_percentage=0.7, split_by="vide
         random.shuffle(frame_ids)
 
         # split the dataframes
-        train_frame_ids = frame_ids[:int(len(frame_ids) * train_percentage)]
-        val_frame_ids = frame_ids[int(len(frame_ids) * train_percentage):]
+        train_frame_ids = frame_ids[:int(len(frame_ids) * train_ratio)]
+        val_frame_ids = frame_ids[int(len(frame_ids) * train_ratio):]
 
         train_df = all_biigle_df[all_biigle_df.frame_id.isin(train_frame_ids)]
         val_df = all_biigle_df[all_biigle_df.frame_id.isin(val_frame_ids)]
@@ -229,7 +229,7 @@ def gather_biigle_csv(biigle_csv_dir):
     return all_df
 
 
-def main(biigle_csv_dir, output_dir):
+def main(biigle_csv_dir, output_dir, train_ratio, skip_extract_frames):
     """
     Main function.
 
@@ -281,8 +281,11 @@ def main(biigle_csv_dir, output_dir):
 
     # Create the train/val split metadata files
     print("Creating metadata files...")
-    train_val_split(all_df, output_dir, split_by="frame")
+    train_val_split(all_df, output_dir, split_by="frame", train_ratio=train_ratio)
 
+    if skip_extract_frames:
+        return
+    
     # Then extract the frames
     print("Extracting frames...")
     extract_frames(all_df, output_dir)
@@ -292,8 +295,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--biigle-csv-dir", help="Path to the biigle csv files", required=True)
     parser.add_argument("--output-dir", help="Output directory", required=True)
+    parser.add_argument("--train-ratio", help="Percentage of the data to use for training", default=0.95, type=float)
+    parser.add_argument("--skip-extract-frames", help="Skip extracting frames from videos", action="store_true")
     args = parser.parse_args()
 
-    main(os.path.expanduser(args.biigle_csv_dir), os.path.expanduser(args.output_dir))
+    main(
+        biigle_csv_dir=os.path.expanduser(args.biigle_csv_dir), 
+        output_dir=os.path.expanduser(args.output_dir),
+        train_ratio=args.train_ratio,
+        skip_extract_frames=args.skip_extract_frames,
+    )
     
 
