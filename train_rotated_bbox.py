@@ -74,8 +74,8 @@ def get_shape_augmentations():
         T.RandomRotation(angle=[-15, 15], sample_style="range", expand=True),
         # T.RandomCrop("relative_range", (0.85, 0.85)),
         # T.MinIoURandomCrop(min_ious=(1.0,), min_crop_size=0.5, ),
-        # T.ResizeShortestEdge(short_edge_length=(
-        #     250, 300, 350, 400, 450), max_size=1333, sample_style='choice'),
+        T.ResizeShortestEdge(short_edge_length=(
+            400, 450, 500), max_size=1333, sample_style='choice'),
     ]
 
 
@@ -167,41 +167,48 @@ def debug_write_image(dataset_dict, filename):
 
 
 class DatasetMapper:
-    def __init__(self, cfg, num_paste=0):
+    def __init__(self, cfg):
         self.dataset_dicts = DatasetCatalog.get(cfg.DATASETS.TRAIN[0])
 
         self.color_aug = get_color_augmentations()
         self.shape_aug = get_shape_augmentations()
-        self.num_paste = num_paste
+        self.num_paste = cfg.DATASETS.NUM_PASTE
 
     def __call__(self, dataset_dict):
-        main_dict = self.map_single(dataset_dict, crop_or_pad='pad')
-        main_dict["pasted_crop_bboxes8"] = [main_dict["self_crop_bbox8"]]
+        self.map_single(dataset_dict, crop_or_pad='pad')
+        # self.augment(dataset_dict)
 
+
+        main_dict = dataset_dict
+        main_dict["pasted_crop_bboxes8"] = [main_dict["self_crop_bbox8"]]
+        
         for i in range(self.num_paste):
             # sample a random image
-            paste_dict = np.random.choice(self.dataset_dicts)
-            paste_dict = self.map_single(paste_dict, crop_or_pad='crop')
+            random_index = np.random.randint(0, len(self.dataset_dicts))
+            paste_dict = self.dataset_dicts[random_index].copy()
+            
+            # map the image and annotations
+            self.map_single(paste_dict, crop_or_pad='crop')
 
             # apply augmentations
             self.augment(paste_dict)
 
-            main_dict = self.paste(main_dict, paste_dict)
+            self.paste(main_dict, paste_dict)
+
 
         image = main_dict["image"]
-        annotations = main_dict["annotations"]
-
         # map image to torch.Tensor
         image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
         main_dict["image"] = image
 
         # map annotations to Instances
+        annotations = main_dict.pop("annotations")
         instances = utils.annotations_to_instances_rotated(
             annotations, image.shape[1:3]
         )
         dataset_dict["instances"] = utils.filter_empty_instances(instances)
+        del annotations
         return dataset_dict
-
 
     def paste(self, main_dict, paste_dict):
         """
@@ -219,7 +226,7 @@ class DatasetMapper:
         if base_image.shape[0] <= paste_image.shape[0] or base_image.shape[1] <= paste_image.shape[1]:
             # if the paste image is larger than the base image
             # just return the base image and annotations
-            return main_dict
+            return
         
         # sample a random location to paste the image
         # until there is no overlap with the base image
@@ -251,7 +258,7 @@ class DatasetMapper:
         # paste the image
         base_image[paste_xmin:paste_xmax, paste_ymin:paste_ymax] = paste_image
 
-        # adjust the bounding boxes to the paste location
+        # # adjust the bounding boxes to the paste location
         for annotation in paste_annotations:
             annotation['bbox'][0] += paste_ymin
             annotation['bbox'][1] += paste_xmin
@@ -266,7 +273,6 @@ class DatasetMapper:
         main_dict["annotations"] = base_annotations
         main_dict["pasted_crop_bboxes8"] = base_crop_bboxes
 
-        return main_dict
 
 
 
@@ -340,7 +346,6 @@ class DatasetMapper:
                 [crop_bbox[0], crop_bbox[3]],
             ])
         dataset_dict["self_crop_bbox8"] = crop_bbox8
-        return dataset_dict
 
 
 class RotatedBoundingBoxTrainer(DefaultTrainer):
@@ -353,7 +358,7 @@ class RotatedBoundingBoxTrainer(DefaultTrainer):
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, num_paste=3))
+        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg))
 
 
 def train_detectron(args):
@@ -371,17 +376,17 @@ def train_detectron(args):
     DatasetCatalog.register(val_dataset_name, val_dataset_function)
 
     cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file(
-        "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
-    cfg.MODEL.WEIGHTS = "https://dl.fbaipublicfiles.com/detectron2/LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x/144219108/model_final_5e3439.pkl"  # Weights
+    # cfg.merge_from_file(model_zoo.get_config_file(
+    #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))  # Base model
+    # cfg.MODEL.WEIGHTS = "https://dl.fbaipublicfiles.com/detectron2/LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x/144219108/model_final_5e3439.pkl"  # Weights
 
     # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
     #     "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Weights
     
-    # cfg.merge_from_file(model_zoo.get_config_file(
-    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
-    # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-    #     "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
+    cfg.merge_from_file(model_zoo.get_config_file(
+        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))  # Base model
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Weights
     
     # Rotated bbox specific config in the same directory as this file
     cfg.merge_from_file(os.path.join(os.path.dirname(
@@ -391,6 +396,7 @@ def train_detectron(args):
     # Directory where the checkpoints are saved, "." is the current working dir
     cfg.OUTPUT_DIR = args.output_dir
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(class_labels)
+    cfg.DATASETS.NUM_PASTE = 4
     
 
     # save the config to a file for reference

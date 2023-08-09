@@ -1,5 +1,8 @@
+DATASETS:
+  TRAIN: ("rotated_bbox_train",)
+  TEST: ("rotated_bbox_val",)
 DATALOADER:
-  NUM_WORKERS: 0
+  NUM_WORKERS: 1
 MODEL:
   ROI_HEADS:
     NAME: "RROIHeads"
@@ -15,17 +18,18 @@ MODEL:
   ANCHOR_GENERATOR:
     NAME: "RotatedAnchorGenerator"
     ANGLES: [[-90,-60,-30,0,30,60,90]]
-    
+  BACKBONE:
+    FREEZE_AT: 5
 
 SOLVER:
   BASE_LR: 0.0002
   CHECKPOINT_PERIOD: 3000
   IMS_PER_BATCH: 2
-  MAX_ITER: 15000
-  STEPS: (10000, 13000)
+  MAX_ITER: 150000
+  STEPS: (100000, 130000)
   AMP:
     ENABLED: true
 TEST:
   AUG:
     ENABLED: false
-  EVAL_PERIOD: 10
+  EVAL_PERIOD: 1000
