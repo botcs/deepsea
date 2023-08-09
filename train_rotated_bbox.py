@@ -54,6 +54,8 @@ def convert_polygon_to_rotated_bbox(polygon):
 def rotate_bbox(annotation, transforms):
     # converted_bbox = convert_rotated_bbox_to_polygon(annotation['bbox'])
     bbox8 = annotation['bbox8']
+    # reshape to [4, 2]
+    bbox8 = np.asarray(bbox8).reshape(4, 2)
     converted_bbox = transforms.apply_coords(bbox8)
     if len(converted_bbox) == 0:
         # After augmentation, some boxes are degenerate and become empty.
@@ -74,8 +76,8 @@ def get_shape_augmentations():
         T.RandomRotation(angle=[-15, 15], sample_style="range", expand=True),
         # T.RandomCrop("relative_range", (0.85, 0.85)),
         # T.MinIoURandomCrop(min_ious=(1.0,), min_crop_size=0.5, ),
-        T.ResizeShortestEdge(short_edge_length=(
-            400, 450, 500), max_size=1333, sample_style='choice'),
+        # T.ResizeShortestEdge(short_edge_length=(
+        #     400, 450, 500), max_size=1333, sample_style='choice'),
     ]
 
 
@@ -164,7 +166,33 @@ def debug_write_image(dataset_dict, filename):
         image = cv2.drawContours(image, [bbox8], 0, (255, 0, 0, 128), 2)
     cv2.imwrite(filename, image)
 
+class OldMapper:
+    def __init__(self, cfg):
 
+        self.color_aug = get_color_augmentations()
+        self.shape_aug = get_shape_augmentations()
+
+    def __call__(self, dataset_dict):
+        image = utils.read_image(dataset_dict["file_name"], format="BGR")
+
+        color_aug_input = T.AugInput(image)
+        self.color_aug(color_aug_input)
+        image = color_aug_input.image
+
+        image, image_transforms = T.apply_transform_gens(
+            self.shape_aug, image)
+        dataset_dict["image"] = torch.as_tensor(
+            image.transpose(2, 0, 1).astype("float32"))
+
+        annotations = [
+            rotate_bbox(obj, image_transforms)
+            for obj in dataset_dict.pop("annotations")
+            if obj.get("iscrowd", 0) == 0
+        ]
+        instances = utils.annotations_to_instances_rotated(
+            annotations, image.shape[:2])
+        dataset_dict["instances"] = utils.filter_empty_instances(instances)
+        return dataset_dict
 
 class DatasetMapper:
     def __init__(self, cfg):
@@ -172,6 +200,7 @@ class DatasetMapper:
 
         self.color_aug = get_color_augmentations()
         self.shape_aug = get_shape_augmentations()
+        self.crop_images = cfg.DATASETS.CROP_IMAGES
         self.num_paste = cfg.DATASETS.NUM_PASTE
 
     def __call__(self, dataset_dict):
@@ -180,20 +209,20 @@ class DatasetMapper:
 
 
         main_dict = dataset_dict
-        main_dict["pasted_crop_bboxes8"] = [main_dict["self_crop_bbox8"]]
-        
-        for i in range(self.num_paste):
-            # sample a random image
-            random_index = np.random.randint(0, len(self.dataset_dicts))
-            paste_dict = self.dataset_dicts[random_index].copy()
-            
-            # map the image and annotations
-            self.map_single(paste_dict, crop_or_pad='crop')
+        if main_dict.get("self_crop_bbox8", None) is not None:
+            main_dict["pasted_crop_bboxes8"] = [main_dict["self_crop_bbox8"]]
+            for i in range(self.num_paste):
+                # sample a random image
+                random_index = np.random.randint(0, len(self.dataset_dicts))
+                paste_dict = self.dataset_dicts[random_index].copy()
+                
+                # map the image and annotations
+                self.map_single(paste_dict, crop_or_pad='crop')
 
-            # apply augmentations
-            self.augment(paste_dict)
+                # apply augmentations
+                self.augment(paste_dict)
 
-            self.paste(main_dict, paste_dict)
+                self.paste(main_dict, paste_dict)
 
 
         image = main_dict["image"]
@@ -281,7 +310,7 @@ class DatasetMapper:
 
         if image.shape[0] <= 0 or image.shape[1] <= 0:
             logging.error("Augmentation error: image shape is invalid")
-            raise ValueError("Augmentation error: image shape is invalid")
+            raise ValueError(f"Augmentation error: image shape is invalid. dataset_dict: {dataset_dict}")
         
         if image.dtype != np.uint8:
             logging.error("Augmentation error: image dtype is not uint8")
@@ -309,7 +338,8 @@ class DatasetMapper:
 
         dataset_dict["image"] = image
         dataset_dict["annotations"] = annotations
-        dataset_dict["self_crop_bbox8"] = self_crop_bbox
+        if self.crop_images:
+            dataset_dict["self_crop_bbox8"] = self_crop_bbox
 
     def map_single(self, dataset_dict, crop_or_pad):
         image = utils.read_image(dataset_dict["file_name"], format="BGR")
@@ -323,29 +353,30 @@ class DatasetMapper:
 
         # crop the image that might contain false positives
         # by using the bounding box of the instances
-        image, annotations, crop_bbox = crop_around_bbox(
-            image, annotations, margin=0.2, crop_or_pad=crop_or_pad
-        )
+        if self.crop_images:
+            image, annotations, crop_bbox = crop_around_bbox(
+                image, annotations, margin=0.2, crop_or_pad=crop_or_pad
+            )
+
+            # for rotation augmentations, the reference crop_bbox needs to be adjusted
+            if crop_or_pad == 'crop':
+                crop_bbox8 = np.array([
+                    [0, 0],
+                    [image.shape[1], 0],
+                    [image.shape[1], image.shape[0]],
+                    [0, image.shape[0]],
+                ])
+            else:
+                crop_bbox8 = np.array([
+                    [crop_bbox[0], crop_bbox[1]],
+                    [crop_bbox[2], crop_bbox[1]],
+                    [crop_bbox[2], crop_bbox[3]],
+                    [crop_bbox[0], crop_bbox[3]],
+                ])
+            dataset_dict["self_crop_bbox8"] = crop_bbox8
 
         dataset_dict["image"] = image
         dataset_dict["annotations"] = annotations
-
-        # for rotation augmentations, the reference crop_bbox needs to be adjusted
-        if crop_or_pad == 'crop':
-            crop_bbox8 = np.array([
-                [0, 0],
-                [image.shape[1], 0],
-                [image.shape[1], image.shape[0]],
-                [0, image.shape[0]],
-            ])
-        else:
-            crop_bbox8 = np.array([
-                [crop_bbox[0], crop_bbox[1]],
-                [crop_bbox[2], crop_bbox[1]],
-                [crop_bbox[2], crop_bbox[3]],
-                [crop_bbox[0], crop_bbox[3]],
-            ])
-        dataset_dict["self_crop_bbox8"] = crop_bbox8
 
 
 class RotatedBoundingBoxTrainer(DefaultTrainer):
@@ -358,7 +389,10 @@ class RotatedBoundingBoxTrainer(DefaultTrainer):
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg))
+        if cfg.DATASETS.MAPPER == "DatasetMapper":
+            return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg))
+        else:
+            return build_detection_train_loader(cfg, mapper=OldMapper(cfg))
 
 
 def train_detectron(args):
@@ -392,12 +426,21 @@ def train_detectron(args):
     cfg.merge_from_file(os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "rotated_bbox_config.yaml"))
     cfg.DATASETS.TRAIN = (train_dataset_name,)
-    cfg.DATASETS.TEST = (val_dataset_name,)
+    cfg.DATASETS.TEST = (train_dataset_name,val_dataset_name)
     # Directory where the checkpoints are saved, "." is the current working dir
-    cfg.OUTPUT_DIR = args.output_dir
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(class_labels)
-    cfg.DATASETS.NUM_PASTE = 4
+    cfg.DATASETS.CROP_IMAGES = False
+    cfg.DATASETS.MAPPER = "DatasetMapper"
+    cfg.DATASETS.NUM_PASTE = 0
     
+    output_dir = os.path.join(
+        args.output_dir,
+        f"mapper_{cfg.DATASETS.MAPPER}",
+        f"crop_images_{cfg.DATASETS.CROP_IMAGES}",
+        f"num_paste_{cfg.DATASETS.NUM_PASTE}",
+    )
+    cfg.OUTPUT_DIR = output_dir
+
 
     # save the config to a file for reference
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
