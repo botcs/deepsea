@@ -133,13 +133,13 @@ If --timestamps is provided, extract frames at those timestamps.
 If --biigle-csv is provided, extract frames at the timestamps in the csv file.
 
 Example usage:
-python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory
-python extract_frames_from_video.py --video_path /path/to/video.mp4 --biigle-csv /path/to/biigle.csv --output_directory /path/to/output/directory
+python convert_mp4_to_images --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory
+python convert_mp4_to_images --video_path /path/to/video.mp4 --biigle-csv /path/to/biigle.csv --output_directory /path/to/output/directory
 
 
 Use --timedelta  to extract frames every n seconds (e.g. every 10 seconds)
 Example usage with timedelta:
-python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory --timedelta 10.0
+python convert_mp4_to_images --video_path /path/to/video.mp4 --timestamps 0 10 --output_directory /path/to/output/directory --timedelta 10.0
 """)
     args.add_argument("--video_path", type=str, required=True)
     args.add_argument("--timestamps", help="From and to timestamps (in sec). Exclusive with --biigle", nargs="+", type=float)
@@ -157,6 +157,15 @@ python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps
     if args.timestamps is not None:
         timestamps_from = args.timestamps[0]
         timestamps_to = args.timestamps[1]
+        if timestamps_from == 0 and timestamps_to == -1:
+            timestamps_from = 0
+            # get the duration of the video
+            cap = cv2.VideoCapture(video_path)
+            timestamps_to = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+            cap.release()
+        if timestamps_from >= timestamps_to:
+            raise ValueError(f"timestamps_from ({timestamps_from}) must be less than timestamps_to ({timestamps_to})")
+
         timestamps = list(np.arange(timestamps_from, timestamps_to, args.timedelta))
 
     if args.timestamps is None:
@@ -169,6 +178,10 @@ python extract_frames_from_video.py --video_path /path/to/video.mp4 --timestamps
     timestamps = sorted(timestamps)
 
     output_directory = args.output_directory
-    extracted_frames = extract_frames_from_video(video_path, timestamps)
-    save_frames_to_disk(extracted_frames, output_directory)
+    ts_to_fnames = {ts: f"{ts:010.3f}.jpg" for ts in timestamps}
+    ts_to_frames = extract_frames_from_video(video_path, timestamps)
+    fnames_to_frames = {ts_to_fnames[ts]: frame for ts, frame in ts_to_frames.items()}
+
+    # save frames to disk
+    save_frames_to_disk(fnames_to_frames, output_directory)
 
