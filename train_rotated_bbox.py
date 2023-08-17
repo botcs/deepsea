@@ -77,7 +77,8 @@ def get_shape_augmentations():
         # T.RandomCrop("relative_range", (0.85, 0.85)),
         # T.MinIoURandomCrop(min_ious=(1.0,), min_crop_size=0.5, ),
         # T.ResizeShortestEdge(short_edge_length=(
-        #     400, 450, 500), max_size=1333, sample_style='choice'),
+        #     300, 400, 450), max_size=1333, sample_style='choice'),
+        # T.ResizeScale(min_scale=0.5, max_scale=1.0),
     ]
 
 
@@ -224,6 +225,8 @@ class DatasetMapper:
 
                 self.paste(main_dict, paste_dict)
 
+        # debug_write_image(main_dict, f"debug.jpg")
+        # import ipdb; ipdb.set_trace()
 
         image = main_dict["image"]
         # map image to torch.Tensor
@@ -353,27 +356,29 @@ class DatasetMapper:
 
         # crop the image that might contain false positives
         # by using the bounding box of the instances
-        if self.crop_images:
-            image, annotations, crop_bbox = crop_around_bbox(
-                image, annotations, margin=0.2, crop_or_pad=crop_or_pad
-            )
+        cropped_or_padded_image, annotations, crop_bbox = crop_around_bbox(
+            image, annotations, margin=0.2, crop_or_pad=crop_or_pad
+        )
 
-            # for rotation augmentations, the reference crop_bbox needs to be adjusted
-            if crop_or_pad == 'crop':
-                crop_bbox8 = np.array([
-                    [0, 0],
-                    [image.shape[1], 0],
-                    [image.shape[1], image.shape[0]],
-                    [0, image.shape[0]],
-                ])
-            else:
-                crop_bbox8 = np.array([
-                    [crop_bbox[0], crop_bbox[1]],
-                    [crop_bbox[2], crop_bbox[1]],
-                    [crop_bbox[2], crop_bbox[3]],
-                    [crop_bbox[0], crop_bbox[3]],
-                ])
-            dataset_dict["self_crop_bbox8"] = crop_bbox8
+        if self.crop_images:
+            image = cropped_or_padded_image
+
+        # for rotation augmentations, the reference crop_bbox needs to be adjusted
+        if crop_or_pad == 'crop':
+            crop_bbox8 = np.array([
+                [0, 0],
+                [image.shape[1], 0],
+                [image.shape[1], image.shape[0]],
+                [0, image.shape[0]],
+            ])
+        else:
+            crop_bbox8 = np.array([
+                [crop_bbox[0], crop_bbox[1]],
+                [crop_bbox[2], crop_bbox[1]],
+                [crop_bbox[2], crop_bbox[3]],
+                [crop_bbox[0], crop_bbox[3]],
+            ])
+        dataset_dict["self_crop_bbox8"] = crop_bbox8
 
         dataset_dict["image"] = image
         dataset_dict["annotations"] = annotations
@@ -429,9 +434,9 @@ def train_detectron(args):
     cfg.DATASETS.TEST = (train_dataset_name,val_dataset_name)
     # Directory where the checkpoints are saved, "." is the current working dir
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(class_labels)
-    cfg.DATASETS.CROP_IMAGES = False
+    cfg.DATASETS.CROP_IMAGES = True
     cfg.DATASETS.MAPPER = "DatasetMapper"
-    cfg.DATASETS.NUM_PASTE = 0
+    cfg.DATASETS.NUM_PASTE = 10
     
     output_dir = os.path.join(
         args.output_dir,

@@ -102,8 +102,14 @@ def train_val_split(all_biigle_df, out_dir, train_ratio=0.7, split_by="video", s
     # print the number of unique videos with their counts
     print("Number of unique videos: ", len(video_ids))
     print(tabulate.tabulate(
-        [(i, v, all_biigle_df[all_biigle_df.video_id == v].shape[0]) for i, v in enumerate(video_ids)],
-        headers=["index", "video_id", "frame count"]
+        [(
+            i, 
+            v, 
+            all_biigle_df[all_biigle_df.video_id == v].video_filename.unique()[0], 
+            all_biigle_df[all_biigle_df.video_id == v].shape[0]
+        ) 
+        for i, v in enumerate(video_ids)],
+        headers=["index", "video_id", "video_fname", "frame count"]
     ))
     print("Number of unique labels: ", len(class_labels))
     print(tabulate.tabulate(
@@ -180,6 +186,9 @@ def extract_frames(all_biigle_df, out_dir):
         video_path = os.path.join(video_dir, video_filename)
 
         label_timestamps = single_video_df.frame.unique().tolist()
+        label_timestamps.sort()
+        label_timestamps = [ts for ts in label_timestamps]
+
         frames_dir = os.path.join(out_dir, "frames", "labeled", str(video_id))
 
         os.makedirs(frames_dir, exist_ok=True)
@@ -211,6 +220,7 @@ def gather_biigle_csv(biigle_csv_dir):
     # avoid issues with S3
     all_df.loc[:, 'video_filename'] = all_df.video_filename.apply(lambda x: x.replace("+", " "))
 
+
     # remove videos that do not exist
     all_df = remove_unavailable_videos(all_df)
 
@@ -222,6 +232,9 @@ def gather_biigle_csv(biigle_csv_dir):
     # rename the 'frames' column to 'frame'
     all_df.rename(columns={'frames': 'frame'}, inplace=True)
 
+    # convert the frame column to float
+    all_df.loc[:, 'frame'] = all_df.frame.astype(float)
+    
     # create frame_id column by concatenating video_id and frame
     frame_ids = all_df.video_id.astype(str) + "_" + all_df.frame.astype(str)
     all_df.loc[:, 'frame_id'] = frame_ids

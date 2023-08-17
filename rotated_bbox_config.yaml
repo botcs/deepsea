@@ -33,3 +33,5 @@ TEST:
   AUG:
     ENABLED: false
   EVAL_PERIOD: 3000
+
+VIS_PERIOD: 500

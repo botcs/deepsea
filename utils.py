@@ -121,7 +121,6 @@ def biigle_dataframe_to_detectron_dataset(data, image_dir, class_labels):
     for i, row in data.iterrows():
         video_id = row.video_id
         frame = row.frame
-        # the filename is generated from the video id and timestamp (frame)
         filename = f"{video_id}_{frame}.jpg"
         
         annotations = []
